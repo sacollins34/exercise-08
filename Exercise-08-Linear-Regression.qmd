@@ -1,0 +1,406 @@
+---
+title: "Exercise-08-Linear-Regression"
+format: html
+editor: visual
+---
+
+# **Exercise 08: Practice Simple Linear Regression**
+
+## Step 1:
+
+I first loaded in the packages that I am going to be using for this exercise.
+
+I then used the **read_csv()** function from the {tiddyverse} package to load in the data set.
+
+```{r}
+#| warning: false
+
+library(tidyverse)
+library(skimr)
+library(patchwork)
+library(broom)
+library(mosaic)
+library(infer)
+
+
+```
+
+```{r}
+
+#Loading in data set
+f <- "https://raw.githubusercontent.com/difiore/ada-datasets/main/Street_et_al_2017.csv"
+d <- read_csv(f, col_names = TRUE)
+```
+
+I next did some exploratory data analysis to generate the five-number summary, mean, and the standard deviation (SD). I used the **skim()** function from the {skimr} package
+
+-   mean
+
+-   standard deviation (SD)
+
+-   minimum (p0)
+
+-   1st quartile (p25)
+
+-   median (p50)
+
+-   3rd quartile (p75)
+
+-   maximum (p100)
+
+```{r}
+
+#summary stats 
+skim(d)
+```
+
+## Step 2:
+
+I used the **ggplot()** function to to graph/plot the following:
+
+-   Brain size (**ECV**) as a function of social group size (**Group_size**)
+
+-   Brain size (**ECV**) as a function of longevity (**Longevity**)
+
+-   Brain size (**ECV**) as a function of juvenile period length (**Weaning**)
+
+-   Brain size (**ECV**) as a function of reproductive lifespan (**Repro_lifespan)**
+
+I used the **wrap_plots()** function from the {patchwork} package to compile the graphs together.
+
+```{r}
+#| warning: FALSE
+
+#ECV vs Group Size
+d_scatterplot_ECV_Group_size <- d |>
+  ggplot(aes(x = Group_size, y = ECV)) +
+  geom_point(na.rm = TRUE) +
+  geom_smooth(method= lm) +
+  theme(legend.title=element_blank()) +
+  ggtitle("Brain Size vs Social Group Size")
+
+#ECV vs Longevity
+d_scatterplot_ECV_Longevity <- d |>
+  ggplot(aes(x = Longevity, y = ECV)) +
+  geom_point(na.rm = TRUE) +
+  geom_smooth(method= lm) +
+  theme(legend.title=element_blank()) +
+  ggtitle("Brain Size vs Longevity")
+
+#ECV vs Weaning
+d_scatterplot_ECV_Weaning <- d |>
+  ggplot(aes(x = Weaning, y = ECV)) +
+  geom_point(na.rm = TRUE) +
+  geom_smooth(method= lm) +
+  theme(legend.title=element_blank()) +
+  ggtitle("Brain Size vs Juvenile Length")
+
+#ECV vs Repro_lifespan
+d_scatterplot_ECV_Repro_lifespan <- d |>
+  ggplot(aes(x = Repro_lifespan, y = ECV)) +
+  geom_point(na.rm = TRUE) +
+  geom_smooth(method= lm) +
+  theme(legend.title=element_blank()) +
+  ggtitle("Brain Size vs Reproductive Lifespan")
+
+#compiling graphs together
+combined_scatterplots_ECV <- wrap_plots(d_scatterplot_ECV_Group_size,
+                                        d_scatterplot_ECV_Longevity,
+                                        d_scatterplot_ECV_Weaning,
+                                        d_scatterplot_ECV_Repro_lifespan)
+
+combined_scatterplots_ECV
+```
+
+## Step 3:
+
+I calculated the ordinary least squares regression coefficients (β1 and β0) for Brain size (**ECV**) as a function of social group size (**Group_size**) by hand.
+
+-   x \<- Group_size
+
+-   y \<- ECV
+
+I first selected the columns I was interested in so that I didn't drop unnecessary rows.
+
+```{r}
+#| echo: FALSE
+
+ECV_Group_size_table <- d |> 
+  select(ECV, Group_size) |>
+  drop_na() 
+```
+
+**β1 coefficient (Slope)**
+
+```{r}
+
+#COV(x,y)
+ECV_Group_size_cov <- 
+  sum((ECV_Group_size_table$Group_size - mean(ECV_Group_size_table$Group_size)) * (ECV_Group_size_table$ECV - mean(ECV_Group_size_table$ECV)) / (length(ECV_Group_size_table$Group_size) - 1))
+
+
+#COR(x,y)
+sd_Group_size <- sd(ECV_Group_size_table$Group_size)
+sd_ECV <- sd(ECV_Group_size_table$ECV)
+ECV_Group_size_cor <- (ECV_Group_size_cov / (sd_Group_size * sd_ECV))
+
+#Beta1 
+ECV_Group_size_Beta1 <- (ECV_Group_size_cor * (sd_ECV/sd_Group_size))
+
+#creating a table to label column 
+ECV_Group_size_Beta1_table <- tibble(Beta1 = ECV_Group_size_Beta1[1])
+ECV_Group_size_Beta1_table
+```
+
+**β0 coefficient (Y-Intercept)**
+
+```{r}
+#Beta0
+
+ECV_Group_size_Beta0 <- (mean(ECV_Group_size_table$ECV) - (ECV_Group_size_Beta1 * mean(ECV_Group_size_table$Group_size)))
+
+#creating a table to label column 
+ECV_Group_size_Beta0_table <- tibble(Beta0 = ECV_Group_size_Beta0[1])
+ECV_Group_size_Beta0_table
+```
+
+## Step 4:
+
+Confirming that I calculated the β1 and β0 coefficient correctly by using the **lm()** function.
+
+```{r}
+
+ECV_Group_size_lm <- lm(ECV ~ Group_size, data = ECV_Group_size_table)
+ECV_Group_size_lm
+```
+
+## Step 5:
+
+I calculated the β1 (Group_size) and β0 (y-intercept) coefficient using the **lm()** function for Brain size (**ECV**) as a function of social group size (**Group_size**) for the three different major radiations of primates:
+
+-   Catarrhini
+
+-   Platyrrhini
+
+-   Strepsirhini
+
+The β1 (Group_size) coefficient between all three radiations showed a positive relationship (positive slope) between ECV and group size. Platyrrhini and Strepsirhini have very similar β1, while Catarrhini was a bit smaller. The β0 (y-intercept) coefficient varied between all three radiations.
+
+We could use an ANCOVA (analysis of covariance) to determine if the relationship between ECV and group size differs between the three radiations.
+
+**Catarrhini**
+
+```{r}
+
+ECV_Group_size_table_Catarrhines <- d |> 
+  select(Taxonomic_group, ECV, Group_size) |>
+  filter(Taxonomic_group == "Catarrhini") |>
+  drop_na()
+
+lm(ECV ~ Group_size, data = ECV_Group_size_table_Catarrhines)
+
+```
+
+**Platyrrhini**
+
+```{r}
+ECV_Group_size_table_Platyrrhini <- d |> 
+  select(Taxonomic_group, ECV, Group_size) |>
+  filter(Taxonomic_group == "Platyrrhini") |>
+  drop_na()
+
+lm(ECV ~ Group_size, data = ECV_Group_size_table_Platyrrhini)
+```
+
+**Strepsirhini**
+
+```{r}
+
+ECV_Group_size_table_Strepsirhini <- d |> 
+  select(Taxonomic_group, ECV, Group_size) |>
+  filter(Taxonomic_group == "Strepsirhini") |>
+  drop_na()
+
+lm(ECV ~ Group_size, data = ECV_Group_size_table_Strepsirhini)
+```
+
+## Step 6:
+
+For the first regression of ECV on social group size, I calculated by hand the following for the slope (β1) coefficient:
+
+-   Standard Error (SE)
+
+-   95% Confidence Interval
+
+-   P Value (also the t statistic)
+
+**Code for Standard Error (SE)**
+
+```{r}
+
+# y = b1*x + b0: to get predicted valu
+ECV_Group_size_predicted <- (ECV_Group_size_Beta1 * ECV_Group_size_table$Group_size) + ECV_Group_size_Beta0 
+
+#turned my predicted values into a table 
+ECV_Group_size_predicted_table <- as_tibble(ECV_Group_size_predicted)
+
+#Sum of Squares for Error
+SSE <- sum((ECV_Group_size_table$ECV - ECV_Group_size_predicted_table)^2)
+
+#Degrees of Freedom for linear regression (n-2)
+df <- nrow(ECV_Group_size_table) - 2
+
+#Mean Squared Error
+MSE <- SSE / df
+
+#Sum of Squares for X
+SSX <- sum((ECV_Group_size_table$Group_size - mean(ECV_Group_size_table$Group_size))^2)
+
+#Standard Error of the slope (β1) coefficient
+Beta1_SE <- sqrt(MSE / SSX)
+
+# Creating a table to combine later
+SE_Beta1_table <- tibble(Coefficients = "Group Size", Standard_Error = Beta1_SE[1])
+```
+
+**Code for 95% Confidence Interval**
+
+```{r}
+
+# Confidence Interval  
+# using qt since linear regressions use the t-Distribution
+CI_Beta1 <- ECV_Group_size_Beta1 + qt(p = c(0.025, 0.975), df = length(ECV_Group_size_table$Group_size) - 2) * Beta1_SE
+
+# Creating a table to combine later
+CI_Beta1_table <- tibble(Coefficients = "Group Size", Lower_CI = CI_Beta1[1],Upper_CI = CI_Beta1[2])
+
+```
+
+**Code for P Value** **( and t statistic)**
+
+```{r}
+
+#First need to calculate the t value 
+t_statistic <- ECV_Group_size_Beta1 / Beta1_SE
+
+# multiplying by 2 for two-tailed 
+# lower.tail needs to FALSE???? 
+p_statistic <- 2 * pt(t_statistic, df = length(ECV_Group_size_table$Group_size) - 2, lower.tail = FALSE)
+
+# Creating a table to combine later
+t_p_value_Beta1_table <- tibble(Coefficients = "Group Size", t_value = t_statistic[1], p_value = p_statistic[1])
+
+```
+
+**Combined table with Standard Error (SE) & 95% Confidence Interval & P Value**
+
+```{r}
+#| warning: FALSE
+#combined table showing the SE & 95% CI & p value
+
+step6_table <- SE_Beta1_table |> 
+  inner_join(CI_Beta1_table) |>
+  inner_join(t_p_value_Beta1_table)
+step6_table
+```
+
+**lm() function confirmation**
+
+I extracted this same information using the **lm()** function and the **tidy()**, **glance(),** **confint()** functions from the {broom} package.
+
+```{r}
+#| warning: FALSE
+
+step6_lm_table <- cbind(tidy(ECV_Group_size_lm), glance(ECV_Group_size_lm), confint(ECV_Group_size_lm)) |> 
+  select("std.error", "2.5 %", "97.5 %","statistic", "p.value") |>
+  slice(2)
+step6_lm_table
+```
+
+## Step 7:
+
+I used a permutation (1000 permutations) approach to generate a null sampling distribution for the slope (β1) coefficient. We need to permute brain size (**ECV**) and social group size (**Group_size**), which will help us break the relationship between brain size (**ECV**) and social group size (**Group_size**). I used the theory based method (standard error of the null sampling distribution and a t distribution) to calculate the p-value. Permutations do not resample.
+
+```{r}
+#Used the do() loop to get the permutation distribution for the slope
+#Permutations samples WITHOUT replacement 
+
+nperm <- 1000
+perm <- do(nperm) * {
+  d_new <- d 
+  d_new$Group_size <- sample(d_new$Group_size) #replace = FALSE
+  
+  perm_lm <- lm(data = d_new, ECV ~ Group_size)
+  
+  broom::tidy(perm_lm) |>
+    filter(term == "Group_size") |>
+    pull(estimate) #sampled slope (β1) coefficients
+}
+
+# I calculated the SE of the permutation distribution for the slope 
+
+perm_se <- sd(perm$result)
+
+#I calculated the P-value of the permutation distribution for the slope 
+
+#original slope (β1) coefficient
+observed_slope <- ECV_Group_size_Beta1
+
+#permutation distribution t-value 
+perm_t_statistic <- observed_slope / perm_se
+
+
+#p-value of the permutation distribution
+#pt() ; cumulative probability
+perm_pvalue <- 2 * pt(perm_t_statistic, df = length(ECV_Group_size_table$Group_size) - 2, lower.tail = FALSE)
+
+p_value_perm_table <- tibble(Coefficients = "Group Size", p_value = perm_pvalue[1])
+p_value_perm_table
+```
+
+## Step 8:
+
+I used bootstrapping (1000 reps) to generate a 95% CI of the slope coefficient estimate and I did this using the {infer} package.
+
+**Quantile method**
+
+```{r}
+
+#bootstapping using the infer package
+#bootstapping samples WITH replacement 
+alpha <- 0.05 
+p_lower <- alpha/2
+p_upper <- 1 - (alpha/2)
+
+boot_slope <- ECV_Group_size_table |> 
+  specify(ECV ~ Group_size) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "slope") |>
+  summarize(
+    Boot_mean = mean(stat),
+    Boot_se = sd(stat),
+    Boot_Lower_CI = quantile(stat, p_lower), 
+    Boot_Upper_CI = quantile(stat,p_upper))
+  
+Q_boot_CI <-  tibble(Coefficients = "Group Size", 
+                     Boot_Lower_CI = boot_slope$Boot_Lower_CI, 
+                     Boot_Upper_CI = boot_slope$Boot_Upper_CI)
+
+Q_boot_CI
+```
+
+**Theory-based method**
+
+I used the mean and the standard error generated from the bootstrap above to calculate the 95% confidence intervals.
+
+```{r}
+
+#use qnorm since sample size is larger that 30
+TB_CI <- boot_slope$Boot_mean + c(-1, 1) * qnorm(1 - (alpha/2)) * boot_slope$Boot_se
+
+TB_boot_CI <- tibble(Coefficients = "Group Size", 
+       Boot_Lower_CI = TB_CI[1], 
+       Boot_Upper_CI = TB_CI[2])
+
+TB_boot_CI
+```
